@@ -1,16 +1,26 @@
-# render.yaml - Configuration automatique
+# render.yaml - Configuration optimisée pour déploiement rapide
 services:
   - type: web
     name: recipebook
     env: node
     region: frankfurt
     plan: free
-    buildCommand: npm install
+    buildCommand: npm ci --only=production
     startCommand: npm start
     healthCheckPath: /api/health
+    healthCheckInterval: 30
+    preDeployCommand: npm prune --production
+    
+    # Performance et cache
+    dockerfilePath: ./Dockerfile
+    
     envVars:
       - key: NODE_ENV
         value: production
       - key: MONGODB_URI
-        sync: false  # À définir manuellement
+        sync: false  # À définir manuellement dans le panneau Render
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=256
+    
+    # Auto-déploiement sur chaque push
     autoDeploy: true
