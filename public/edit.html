@@ -1,0 +1,295 @@
+<!-- public/edit.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modifier la recette - RecipeBook</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-3xl">
+        <header class="mb-8">
+            <a href="/" class="text-orange-600 hover:text-orange-700 mb-4 inline-block">
+                <i class="fas fa-arrow-left mr-2"></i> Retour à l'accueil
+            </a>
+            <h1 class="text-3xl font-bold text-gray-800">
+                <i class="fas fa-edit text-orange-500 mr-3"></i>Modifier la recette
+            </h1>
+        </header>
+
+        <div id="loading" class="text-center py-10">
+            <i class="fas fa-spinner fa-spin text-3xl text-orange-500"></i>
+            <p class="mt-2">Chargement de la recette...</p>
+        </div>
+
+        <div id="recipeFormContainer" class="hidden">
+            <!-- Le formulaire sera inséré ici via JavaScript -->
+        </div>
+
+        <div id="errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mt-4">
+            <!-- Messages d'erreur -->
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const recipeId = urlParams.get('id');
+            
+            if (!recipeId) {
+                window.location.href = '/';
+                return;
+            }
+            
+            try {
+                // Charger la recette
+                const recipe = await RecipeAPI.getById(recipeId);
+                displayEditForm(recipe);
+            } catch (error) {
+                showError('Recette non trouvée');
+                console.error('Erreur:', error);
+            }
+        });
+        
+        function displayEditForm(recipe) {
+            document.getElementById('loading').classList.add('hidden');
+            const container = document.getElementById('recipeFormContainer');
+            container.classList.remove('hidden');
+            
+            container.innerHTML = `
+                <div class="bg-white rounded-xl shadow p-6">
+                    <form id="editRecipeForm">
+                        <!-- Titre -->
+                        <div class="mb-6">
+                            <label class="block text-gray-700 font-medium mb-2">
+                                <i class="fas fa-heading mr-2"></i>Titre de la recette *
+                            </label>
+                            <input type="text" 
+                                   id="title"
+                                   value="${recipe.title}"
+                                   required
+                                   class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-6">
+                            <label class="block text-gray-700 font-medium mb-2">
+                                <i class="fas fa-align-left mr-2"></i>Description *
+                            </label>
+                            <textarea 
+                                id="description"
+                                required
+                                rows="3"
+                                class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">${recipe.description}</textarea>
+                        </div>
+
+                        <!-- Ingrédients -->
+                        <div class="mb-6">
+                            <label class="block text-gray-700 font-medium mb-2">
+                                <i class="fas fa-carrot mr-2"></i>Ingrédients *
+                            </label>
+                            <div id="ingredientsContainer" class="space-y-2 mb-3">
+                                ${recipe.ingredients.map((ing, index) => `
+                                    <div class="flex items-center bg-gray-50 p-2 rounded">
+                                        <span class="flex-1">${ing}</span>
+                                        <button type="button" 
+                                                onclick="removeIngredient(${index})"
+                                                class="text-red-500 hover:text-red-700 ml-2">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="flex">
+                                <input type="text" 
+                                       id="ingredientInput"
+                                       class="flex-1 p-3 border rounded-l-lg"
+                                       placeholder="Ex: 200g de farine">
+                                <button type="button" 
+                                        onclick="addIngredient()"
+                                        class="bg-gray-200 px-4 rounded-r-lg hover:bg-gray-300">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Instructions -->
+                        <div class="mb-6">
+                            <label class="block text-gray-700 font-medium mb-2">
+                                <i class="fas fa-list-ol mr-2"></i>Instructions *
+                            </label>
+                            <textarea 
+                                id="instructions"
+                                required
+                                rows="6"
+                                class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500">${recipe.instructions}</textarea>
+                        </div>
+
+                        <!-- Informations -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-2">
+                                    <i class="fas fa-clock mr-2"></i>Temps (min)
+                                </label>
+                                <input type="number" 
+                                       id="prepTime"
+                                       value="${recipe.prepTime}"
+                                       min="1"
+                                       class="w-full p-3 border rounded-lg">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-2">
+                                    <i class="fas fa-chart-line mr-2"></i>Difficulté
+                                </label>
+                                <select id="difficulty" class="w-full p-3 border rounded-lg">
+                                    <option value="facile" ${recipe.difficulty === 'facile' ? 'selected' : ''}>Facile</option>
+                                    <option value="moyen" ${recipe.difficulty === 'moyen' ? 'selected' : ''}>Moyen</option>
+                                    <option value="difficile" ${recipe.difficulty === 'difficile' ? 'selected' : ''}>Difficile</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-2">
+                                    <i class="fas fa-tag mr-2"></i>Catégorie
+                                </label>
+                                <select id="category" class="w-full p-3 border rounded-lg">
+                                    <option value="plat" ${recipe.category === 'plat' ? 'selected' : ''}>Plat</option>
+                                    <option value="entrée" ${recipe.category === 'entrée' ? 'selected' : ''}>Entrée</option>
+                                    <option value="dessert" ${recipe.category === 'dessert' ? 'selected' : ''}>Dessert</option>
+                                    <option value="boisson" ${recipe.category === 'boisson' ? 'selected' : ''}>Boisson</option>
+                                    <option value="autre" ${recipe.category === 'autre' ? 'selected' : ''}>Autre</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Image -->
+                        <div class="mb-8">
+                            <label class="block text-gray-700 font-medium mb-2">
+                                <i class="fas fa-image mr-2"></i>Image (URL)
+                            </label>
+                            <input type="url" 
+                                   id="image"
+                                   value="${recipe.image || ''}"
+                                   class="w-full p-3 border rounded-lg"
+                                   placeholder="https://exemple.com/image.jpg">
+                        </div>
+
+                        <!-- Boutons -->
+                        <div class="flex justify-end space-x-4">
+                            <button type="button" 
+                                    onclick="cancelEdit()" 
+                                    class="px-6 py-3 border rounded-lg hover:bg-gray-50">
+                                Annuler
+                            </button>
+                            <button type="submit" 
+                                    class="bg-orange-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600">
+                                <i class="fas fa-save mr-2"></i>Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            // Initialiser les ingrédients
+            window.ingredients = [...recipe.ingredients];
+            
+            // Configurer le formulaire
+            setupEditForm(recipe._id);
+        }
+        
+        function setupEditForm(recipeId) {
+            const form = document.getElementById('editRecipeForm');
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const recipeData = {
+                    title: document.getElementById('title').value,
+                    description: document.getElementById('description').value,
+                    ingredients: window.ingredients,
+                    instructions: document.getElementById('instructions').value,
+                    prepTime: parseInt(document.getElementById('prepTime').value),
+                    difficulty: document.getElementById('difficulty').value,
+                    category: document.getElementById('category').value,
+                    image: document.getElementById('image').value
+                };
+                
+                if (window.ingredients.length === 0) {
+                    showError('Ajoutez au moins un ingrédient');
+                    return;
+                }
+                
+                try {
+                    await RecipeAPI.update(recipeId, recipeData);
+                    showSuccess('Recette mise à jour !');
+                    setTimeout(() => {
+                        window.location.href = `/recipe.html?id=${recipeId}`;
+                    }, 1500);
+                } catch (error) {
+                    showError('Erreur lors de la mise à jour');
+                    console.error('Erreur:', error);
+                }
+            });
+        }
+        
+        // Gestion des ingrédients
+        window.ingredients = [];
+        
+        function addIngredient() {
+            const input = document.getElementById('ingredientInput');
+            const ingredient = input.value.trim();
+            
+            if (ingredient) {
+                window.ingredients.push(ingredient);
+                updateIngredientsDisplay();
+                input.value = '';
+                input.focus();
+            }
+        }
+        
+        function removeIngredient(index) {
+            window.ingredients.splice(index, 1);
+            updateIngredientsDisplay();
+        }
+        
+        function updateIngredientsDisplay() {
+            const container = document.getElementById('ingredientsContainer');
+            container.innerHTML = window.ingredients.map((ing, index) => `
+                <div class="flex items-center bg-gray-50 p-2 rounded">
+                    <span class="flex-1">${ing}</span>
+                    <button type="button" 
+                            onclick="removeIngredient(${index})"
+                            class="text-red-500 hover:text-red-700 ml-2">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('') || '<p class="text-gray-500 text-sm">Aucun ingrédient</p>';
+        }
+        
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.innerHTML = `<i class="fas fa-exclamation-circle mr-2"></i>${message}`;
+            errorEl.classList.remove('hidden');
+        }
+        
+        function showSuccess(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.innerHTML = `
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded flex items-center">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            errorEl.classList.remove('hidden');
+        }
+        
+        function cancelEdit() {
+            const recipeId = new URLSearchParams(window.location.search).get('id');
+            window.location.href = `/recipe.html?id=${recipeId}`;
+        }
+    </script>
+</body>
+</html>
