@@ -1,22 +1,23 @@
-// src/routes/recipes.js - VERSION CORRIGÉE
+// src/routes/recipes.js - VERSION AVEC AUTHENTIFICATION
 const express = require('express');
 const Recipe = require('../models/Recipe');
+const authenticateToken = require('../middleware/auth');
 const router = express.Router();
 
-// GET toutes les recettes
+// GET toutes les recettes (public)
 router.get('/', async (req, res) => {
   try {
-    const recipes = await Recipe.find().sort({ createdAt: -1 });
+    const recipes = await Recipe.find().sort({ createdAt: -1 }).populate('userId', 'username');
     res.json(recipes);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET une recette
+// GET une recette (public)
 router.get('/:id', async (req, res) => {
   try {
-    const recipe = await Recipe.findById(req.params.id);
+    const recipe = await Recipe.findById(req.params.id).populate('userId', 'username');
     if (!recipe) {
       return res.status(404).json({ error: 'Recette non trouvée' });
     }
@@ -26,52 +27,69 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST créer une recette
-router.post('/', async (req, res) => {
+// POST créer une recette (protégé)
+router.post('/', authenticateToken, async (req, res) => {
   try {
-    const recipe = new Recipe(req.body);
+    const recipe = new Recipe({
+      ...req.body,
+      userId: req.user.id
+    });
     const savedRecipe = await recipe.save();
+    await savedRecipe.populate('userId', 'username');
     res.status(201).json(savedRecipe);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
 
-// PUT mettre à jour
-router.put('/:id', async (req, res) => {
+// PUT mettre à jour (protégé - owner seulement)
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
-    const recipe = await Recipe.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const recipe = await Recipe.findById(req.params.id);
     
     if (!recipe) {
       return res.status(404).json({ error: 'Recette non trouvée' });
     }
     
-    res.json(recipe);
+    // Vérifier que l'utilisateur est le propriétaire
+    if (recipe.userId.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Non autorisé à modifier cette recette' });
+    }
+    
+    const updatedRecipe = await Recipe.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    ).populate('userId', 'username');
+    
+    res.json(updatedRecipe);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
 
-// DELETE supprimer
-router.delete('/:id', async (req, res) => {
+// DELETE supprimer (protégé - owner seulement)
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    const recipe = await Recipe.findByIdAndDelete(req.params.id);
+    const recipe = await Recipe.findById(req.params.id);
     
     if (!recipe) {
       return res.status(404).json({ error: 'Recette non trouvée' });
     }
     
+    // Vérifier que l'utilisateur est le propriétaire
+    if (recipe.userId.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Non autorisé à supprimer cette recette' });
+    }
+    
+    await Recipe.findByIdAndDelete(req.params.id);
     res.json({ message: 'Recette supprimée' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// RECHERCHE
+// RECHERCHE (public)
 router.get('/search/:query', async (req, res) => {
   try {
     const query = req.params.query;
@@ -81,7 +99,7 @@ router.get('/search/:query', async (req, res) => {
         { ingredients: { $regex: query, $options: 'i' } },
         { description: { $regex: query, $options: 'i' } }
       ]
-    });
+    }).populate('userId', 'username');
     res.json(recipes);
   } catch (error) {
     res.status(500).json({ error: error.message });

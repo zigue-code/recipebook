@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liste de courses - RecipeBook</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <a href="/" class="text-orange-600 hover:text-orange-700 inline-block mb-4">
+                    <i class="fas fa-arrow-left mr-2"></i>Retour
+                </a>
+                <h1 class="text-3xl font-bold text-gray-800">
+                    <i class="fas fa-shopping-cart text-orange-500 mr-3"></i>Liste de courses
+                </h1>
+            </div>
+            <button onclick="printList()" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600">
+                <i class="fas fa-print mr-2"></i>Imprimer
+            </button>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Colonne gauche: Recettes -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h2 class="text-2xl font-bold mb-4">
+                        <i class="fas fa-book text-orange-500 mr-2"></i>Recettes disponibles
+                    </h2>
+
+                    <div id="recipesContainer" class="space-y-3 max-h-96 overflow-y-auto">
+                        <p class="text-gray-500 text-center py-8">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>Chargement...
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Colonne droite: Liste de courses -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl shadow p-6 sticky top-8">
+                    <h2 class="text-2xl font-bold mb-4">
+                        <i class="fas fa-check-circle text-green-500 mr-2"></i>Ingrédients
+                    </h2>
+
+                    <div id="shoppingListContainer" class="space-y-2 mb-6 max-h-96 overflow-y-auto">
+                        <p class="text-gray-500 text-center py-4">
+                            Sélectionnez des recettes
+                        </p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <button onclick="clearList()" class="w-full px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200">
+                            <i class="fas fa-trash mr-2"></i>Effacer
+                        </button>
+                        <button onclick="exportList()" class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                            <i class="fas fa-download mr-2"></i>Exporter
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script>
+        let shoppingList = {};
+        let recipes = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadRecipes();
+            loadShoppingList();
+        });
+
+        async function loadRecipes() {
+            try {
+                recipes = await RecipeAPI.getAll();
+                displayRecipes();
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('recipesContainer').innerHTML = `
+                    <p class="text-red-500">Erreur de chargement des recettes</p>
+                `;
+            }
+        }
+
+        function displayRecipes() {
+            const container = document.getElementById('recipesContainer');
+            
+            if (recipes.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center">Aucune recette disponible</p>';
+                return;
+            }
+
+            let html = '';
+            recipes.forEach(recipe => {
+                const isSelected = shoppingList[recipe._id] ? 'bg-orange-50 border-2 border-orange-500' : 'border border-gray-200';
+                
+                html += `
+                    <div class="p-4 rounded-lg cursor-pointer transition ${isSelected}" 
+                         onclick="toggleRecipe('${recipe._id}', '${recipe.title.replace(/'/g, "\\'")}', ${JSON.stringify(recipe.ingredients).replace(/"/g, '\\"')})">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-800">${recipe.title}</h3>
+                                <p class="text-sm text-gray-500">${recipe.ingredients.length} ingrédients</p>
+                            </div>
+                            <input type="checkbox" ${shoppingList[recipe._id] ? 'checked' : ''} class="mt-1">
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function toggleRecipe(recipeId, title, ingredients) {
+            if (shoppingList[recipeId]) {
+                delete shoppingList[recipeId];
+            } else {
+                shoppingList[recipeId] = { title, ingredients };
+            }
+            saveShoppingList();
+            displayRecipes();
+            updateShoppingList();
+        }
+
+        function updateShoppingList() {
+            const container = document.getElementById('shoppingListContainer');
+            const uniqueIngredients = new Set();
+
+            Object.values(shoppingList).forEach(recipe => {
+                recipe.ingredients.forEach(ing => {
+                    uniqueIngredients.add(ing);
+                });
+            });
+
+            if (uniqueIngredients.size === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-4">Sélectionnez des recettes</p>';
+                return;
+            }
+
+            let html = '';
+            Array.from(uniqueIngredients).sort().forEach((ingredient, index) => {
+                html += `
+                    <div class="flex items-center p-2 bg-gray-50 rounded">
+                        <input type="checkbox" id="ing-${index}" class="mr-2 cursor-pointer">
+                        <label for="ing-${index}" class="flex-1 cursor-pointer text-gray-700">${ingredient}</label>
+                        <button onclick="removeIngredient('${ingredient.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-800 ml-2">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function removeIngredient(ingredient) {
+            Object.keys(shoppingList).forEach(recipeId => {
+                shoppingList[recipeId].ingredients = shoppingList[recipeId].ingredients.filter(ing => ing !== ingredient);
+                if (shoppingList[recipeId].ingredients.length === 0) {
+                    delete shoppingList[recipeId];
+                }
+            });
+            saveShoppingList();
+            displayRecipes();
+            updateShoppingList();
+        }
+
+        function clearList() {
+            if (confirm('Vider la liste de courses?')) {
+                shoppingList = {};
+                saveShoppingList();
+                displayRecipes();
+                updateShoppingList();
+            }
+        }
+
+        function saveShoppingList() {
+            localStorage.setItem('shoppingList', JSON.stringify(shoppingList));
+        }
+
+        function loadShoppingList() {
+            const saved = localStorage.getItem('shoppingList');
+            if (saved) {
+                shoppingList = JSON.parse(saved);
+            }
+        }
+
+        function exportList() {
+            const ingredients = [];
+            Object.values(shoppingList).forEach(recipe => {
+                recipe.ingredients.forEach(ing => {
+                    if (!ingredients.includes(ing)) {
+                        ingredients.push(ing);
+                    }
+                });
+            });
+
+            const csv = 'Ingrédient\nQuantité\n' + ingredients.map(ing => ing + '\t').join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `liste-courses-${new Date().toLocaleDateString('fr-FR')}.csv`;
+            a.click();
+        }
+
+        function printList() {
+            const ingredients = [];
+            Object.values(shoppingList).forEach(recipe => {
+                recipe.ingredients.forEach(ing => {
+                    if (!ingredients.includes(ing)) {
+                        ingredients.push(ing);
+                    }
+                });
+            });
+
+            let html = `
+                <!DOCTYPE html>
+                <html lang="fr">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Liste de courses</title>
+                    <style>
+                        body { font-family: Arial; padding: 20px; }
+                        h1 { color: #f97316; }
+                        ul { list-style: none; padding: 0; }
+                        li { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+                        li:before { content: "☐ "; margin-right: 10px; font-size: 18px; }
+                    </style>
+                </head>
+                <body>
+                    <h1>📝 Liste de courses</h1>
+                    <p>Date: ${new Date().toLocaleDateString('fr-FR')}</p>
+                    <ul>
+                        ${ingredients.map(ing => `<li>${ing}</li>`).join('')}
+                    </ul>
+                </body>
+                </html>
+            `;
+
+            const win = window.open('', '', 'height=600,width=800');
+            win.document.write(html);
+            win.document.close();
+            win.print();
+        }
+    </script>
+</body>
+</html>

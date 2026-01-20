@@ -20,12 +20,28 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
     <div class="container mx-auto px-4 py-8">
-        <!-- Header -->
-        <header class="text-center mb-10">
-            <h1 class="text-4xl font-bold text-orange-600 mb-4">
-                <i class="fas fa-utensils mr-3"></i>RecipeBook
-            </h1>
-            <p class="text-gray-600 text-lg">Partagez et découvrez des recettes délicieuses</p>
+        <!-- Header avec boutons Auth -->
+        <header class="flex justify-between items-center mb-10">
+            <div class="text-center flex-1">
+                <h1 class="text-4xl font-bold text-orange-600 mb-4">
+                    <i class="fas fa-utensils mr-3"></i>RecipeBook
+                </h1>
+                <p class="text-gray-600 text-lg">Partagez et découvrez des recettes délicieuses</p>
+            </div>
+            <div class="flex gap-3">
+                <a href="/login.html" id="loginBtn" class="px-4 py-2 border-2 border-orange-500 text-orange-600 rounded-lg hover:bg-orange-50 font-medium hidden">
+                    Se connecter
+                </a>
+                <a href="/register.html" id="registerBtn" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-medium hidden">
+                    S'inscrire
+                </a>
+                <div id="userMenu" class="hidden">
+                    <span id="usernameDisplay" class="font-medium text-gray-700"></span>
+                    <button onclick="logout()" class="ml-4 px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200">
+                        Déconnexion
+                    </button>
+                </div>
+            </div>
         </header>
 
         <!-- Barre de recherche et bouton -->
@@ -37,7 +53,13 @@
                        class="w-full p-4 pl-12 border rounded-lg shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent">
                 <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
             </div>
-            <button onclick="window.location.href='/add.html'" 
+            <a href="/shopping-list.html" class="bg-green-500 text-white px-6 py-4 rounded-lg font-semibold hover:bg-green-600 whitespace-nowrap flex items-center justify-center">
+                <i class="fas fa-shopping-cart mr-2"></i>Liste de courses
+            </a>
+            <a href="/sharing.html" class="bg-purple-500 text-white px-6 py-4 rounded-lg font-semibold hover:bg-purple-600 whitespace-nowrap flex items-center justify-center">
+                <i class="fas fa-share-alt mr-2"></i>Partager
+            </a>
+            <button onclick="protectedAddRecipe()" 
                     class="bg-orange-500 text-white px-6 py-4 rounded-lg font-semibold hover:bg-orange-600 whitespace-nowrap">
                 <i class="fas fa-plus mr-2"></i>Ajouter une recette
             </button>
@@ -77,13 +99,40 @@
 
     <!-- Scripts -->
     <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
     
     <script>
         // Initialisation
         document.addEventListener('DOMContentLoaded', () => {
+            updateAuthUI();
             loadRecipes();
             setupSearch();
         });
+
+        function updateAuthUI() {
+            const isAuthenticated = AuthAPI.isAuthenticated();
+            document.getElementById('loginBtn').classList.toggle('hidden', isAuthenticated);
+            document.getElementById('registerBtn').classList.toggle('hidden', isAuthenticated);
+            document.getElementById('userMenu').classList.toggle('hidden', !isAuthenticated);
+
+            if (isAuthenticated) {
+                const token = AuthAPI.getToken();
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                document.getElementById('usernameDisplay').textContent = `Bienvenue, ${payload.username}!`;
+            }
+        }
+
+        function logout() {
+            AuthAPI.logout();
+        }
+
+        function protectedAddRecipe() {
+            if (!AuthAPI.isAuthenticated()) {
+                window.location.href = '/login.html';
+                return;
+            }
+            window.location.href = '/add.html';
+        }
 
         function setupSearch() {
             const searchInput = document.getElementById('searchInput');

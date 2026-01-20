@@ -16,7 +16,13 @@ app.use('/js', express.static(path.join(__dirname, 'js')));
 
 // Routes
 const recipeRoutes = require('./src/routes/recipes');
+const authRoutes = require('./src/routes/auth');
+const commentRoutes = require('./src/routes/comments');
+const sharingRoutes = require('./src/routes/sharing');
 app.use('/api/recipes', recipeRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/sharing', sharingRoutes);
 
 // ✅ HEALTH CHECK OBLIGATOIRE
 app.get('/api/health', (req, res) => {

@@ -55,7 +55,21 @@ npm start    # Production mode
 // - difficulty (enum: facile/moyen/difficile, default facile)
 // - category (enum: entrée/plat/dessert/boisson/autre, default plat)
 // - image (URL string, optional)
+// - userId (ObjectId ref to User, required for ownership)
 // - createdAt/updatedAt (auto-managed by mongoose)
+
+// Comment schema (src/models/Comment.js):
+// - recipeId (ObjectId ref to Recipe, required)
+// - userId (ObjectId ref to User, required)
+// - text (string 3-500 chars, required)
+// - rating (number 1-5, required)
+// - createdAt (auto-managed)
+
+// User schema (src/models/User.js):
+// - username (unique, 3+ chars)
+// - email (unique, validated)
+// - password (bcrypt hashed, never selected by default)
+// - createdAt (auto)
 ```
 
 ## 🔌 Integration Points
@@ -83,7 +97,16 @@ npm start    # Production mode
 
 - [server.js](server.js) - Express app, routes setup, PORT/MONGODB_URI config
 - [src/routes/recipes.js](src/routes/recipes.js) - CRUD endpoints (GET /, GET /:id, POST, PUT, DELETE)
+- [src/routes/auth.js](src/routes/auth.js) - Auth endpoints (register, login, me)
+- [src/routes/comments.js](src/routes/comments.js) - Comment endpoints (GET, POST, DELETE, PUT)
+- [src/routes/sharing.js](src/routes/sharing.js) - Sharing endpoints (GET with-me, GET my-shares, POST, DELETE)
 - [src/models/Recipe.js](src/models/Recipe.js) - Mongoose schema with validations
-- [js/api.js](js/api.js) - Frontend API client class
-- [package.json](package.json) - Dependencies: express, mongoose, cors, dotenv
+- [src/models/User.js](src/models/User.js) - User schema with bcrypt hashing
+- [src/models/Comment.js](src/models/Comment.js) - Comment schema with ratings
+- [src/models/SharedRecipe.js](src/models/SharedRecipe.js) - Sharing schema with userId lists
+- [src/middleware/auth.js](src/middleware/auth.js) - JWT middleware
+- [js/api.js](js/api.js) - Frontend API client (recipes + comments)
+- [js/auth.js](js/auth.js) - Frontend auth client
+- [public/shopping-list.html](public/shopping-list.html) - Shopping list feature (client-side localStorage)
+- [package.json](package.json) - Dependencies: express, mongoose, cors, dotenv, bcryptjs, jsonwebtoken
 - [Dockerfile](Dockerfile) - Multi-stage build for production deployment

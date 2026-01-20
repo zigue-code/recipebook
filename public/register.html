@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S'inscrire - RecipeBook</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gradient-to-br from-orange-50 to-orange-100 min-h-screen flex items-center justify-center">
+    <div class="w-full max-w-md">
+        <!-- Logo -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-orange-600 mb-2">
+                <i class="fas fa-utensils mr-2"></i>RecipeBook
+            </h1>
+            <p class="text-gray-600">Créez votre compte</p>
+        </div>
+
+        <!-- Formulaire -->
+        <div class="bg-white rounded-xl shadow-lg p-8">
+            <form id="registerForm" class="space-y-4">
+                <!-- Username -->
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2">
+                        <i class="fas fa-user mr-2"></i>Nom d'utilisateur
+                    </label>
+                    <input type="text" 
+                           id="username"
+                           required
+                           minlength="3"
+                           class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                           placeholder="votreusername">
+                </div>
+
+                <!-- Email -->
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2">
+                        <i class="fas fa-envelope mr-2"></i>Email
+                    </label>
+                    <input type="email" 
+                           id="email"
+                           required
+                           class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                           placeholder="vous@exemple.com">
+                </div>
+
+                <!-- Mot de passe -->
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2">
+                        <i class="fas fa-lock mr-2"></i>Mot de passe
+                    </label>
+                    <input type="password" 
+                           id="password"
+                           required
+                           minlength="6"
+                           class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                           placeholder="••••••••">
+                </div>
+
+                <!-- Confirmation mot de passe -->
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2">
+                        <i class="fas fa-lock mr-2"></i>Confirmer le mot de passe
+                    </label>
+                    <input type="password" 
+                           id="passwordConfirm"
+                           required
+                           minlength="6"
+                           class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                           placeholder="••••••••">
+                </div>
+
+                <!-- Message d'erreur -->
+                <div id="errorMessage" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    <span id="errorText"></span>
+                </div>
+
+                <!-- Bouton -->
+                <button type="submit" 
+                        class="w-full bg-orange-500 text-white font-semibold py-3 rounded-lg hover:bg-orange-600 transition">
+                    <i class="fas fa-user-plus mr-2"></i>S'inscrire
+                </button>
+            </form>
+
+            <!-- Lien vers connexion -->
+            <div class="mt-6 text-center">
+                <p class="text-gray-600">
+                    Déjà un compte? 
+                    <a href="/login.html" class="text-orange-600 hover:text-orange-700 font-medium">
+                        Se connecter
+                    </a>
+                </p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-6 text-gray-500 text-sm">
+            <a href="/" class="hover:text-orange-600">← Retour à l'accueil</a>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const passwordConfirm = document.getElementById('passwordConfirm').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+
+            try {
+                errorDiv.classList.add('hidden');
+                await AuthAPI.register(username, email, password, passwordConfirm);
+                window.location.href = '/';
+            } catch (error) {
+                errorText.textContent = error.message;
+                errorDiv.classList.remove('hidden');
+            }
+        });
+
+        // Si déjà connecté, rediriger
+        if (AuthAPI.isAuthenticated()) {
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>

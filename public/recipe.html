@@ -18,28 +18,81 @@
         </header>
 
         <!-- Recette -->
-        <div id="recipeContainer" class="bg-white rounded-xl shadow p-6">
+        <div id="recipeContainer" class="bg-white rounded-xl shadow p-6 mb-8">
             <div class="text-center py-10">
                 <i class="fas fa-spinner fa-spin text-3xl text-orange-500"></i>
                 <p class="mt-2">Chargement de la recette...</p>
             </div>
         </div>
+
+        <!-- Commentaires -->
+        <div class="bg-white rounded-xl shadow p-6">
+            <h2 class="text-2xl font-bold mb-6">
+                <i class="fas fa-comments mr-2 text-orange-500"></i>Avis et commentaires
+            </h2>
+
+            <!-- Formulaire ajout commentaire -->
+            <form id="commentForm" onsubmit="submitComment(event)" class="mb-8 p-4 bg-gray-50 rounded-lg">
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-medium mb-2">
+                        <i class="fas fa-star mr-2 text-yellow-500"></i>Note
+                    </label>
+                    <select id="commentRating" class="w-full px-4 py-2 border rounded-lg" required>
+                        <option value="5">⭐⭐⭐⭐⭐ Excellent (5)</option>
+                        <option value="4">⭐⭐⭐⭐ Très bon (4)</option>
+                        <option value="3">⭐⭐⭐ Bon (3)</option>
+                        <option value="2">⭐⭐ Moyen (2)</option>
+                        <option value="1">⭐ Mauvais (1)</option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-medium mb-2">
+                        <i class="fas fa-pen mr-2"></i>Commentaire
+                    </label>
+                    <textarea id="commentText" 
+                              class="w-full px-4 py-2 border rounded-lg"
+                              placeholder="Partagez votre avis..."
+                              minlength="3"
+                              maxlength="500"
+                              required></textarea>
+                </div>
+
+                <button type="submit" class="w-full bg-orange-500 text-white py-2 rounded-lg hover:bg-orange-600 font-medium">
+                    <i class="fas fa-paper-plane mr-2"></i>Publier le commentaire
+                </button>
+                <p class="text-gray-500 text-sm mt-2">
+                    <a href="/login.html" class="text-orange-600 hover:underline">Connectez-vous</a> pour laisser un avis
+                </p>
+            </form>
+
+            <!-- Liste des commentaires -->
+            <div id="commentsContainer" class="space-y-4">
+                <p class="text-gray-500 text-center py-8">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Chargement...
+                </p>
+            </div>
+        </div>
     </div>
 
     <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
     <script>
+        let currentRecipeId;
+
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const recipeId = urlParams.get('id');
+            currentRecipeId = urlParams.get('id');
             
-            if (!recipeId) {
+            if (!currentRecipeId) {
                 window.location.href = '/';
                 return;
             }
             
             try {
-                const recipe = await RecipeAPI.getById(recipeId);
+                const recipe = await RecipeAPI.getById(currentRecipeId);
                 displayRecipe(recipe);
+                loadComments();
             } catch (error) {
                 console.error('Erreur:', error);
                 document.getElementById('recipeContainer').innerHTML = `
@@ -61,6 +114,9 @@
                 'difficile': 'bg-red-100 text-red-800'
             };
             
+            const isOwner = AuthAPI.isAuthenticated() && AuthAPI.getToken() && 
+                           JSON.parse(atob(AuthAPI.getToken().split('.')[1])).id === recipe.userId._id;
+            
             const html = `
                 <!-- Image -->
                 <div class="mb-8">
@@ -75,7 +131,10 @@
                 <!-- Titre et infos -->
                 <div class="mb-8">
                     <div class="flex justify-between items-start mb-4">
-                        <h1 class="text-3xl font-bold text-gray-800">${recipe.title}</h1>
+                        <div>
+                            <h1 class="text-3xl font-bold text-gray-800">${recipe.title}</h1>
+                            <p class="text-sm text-gray-500 mt-2">Par ${recipe.userId.username}</p>
+                        </div>
                         <span class="px-3 py-1 rounded-full ${difficultyColors[recipe.difficulty]} font-semibold">
                             ${recipe.difficulty}
                         </span>
@@ -120,30 +179,126 @@
                 </div>
                 
                 <!-- Boutons -->
-                <div class="flex justify-between pt-6 border-t">
+                <div class="flex justify-between pt-6 border-t mb-8">
                     <div>
                         <span class="text-gray-500 text-sm">
                             Ajoutée le ${new Date(recipe.createdAt).toLocaleDateString('fr-FR')}
                         </span>
                     </div>
+                    ${isOwner ? `
                     <div class="space-x-4">
                         <button onclick="editRecipe('${recipe._id}')" 
                                 class="px-4 py-2 border rounded-lg hover:bg-gray-50">
                             <i class="fas fa-edit mr-2"></i>Modifier
+                        </button>
+                        <button onclick="goToSharing('${recipe._id}')" 
+                                class="px-4 py-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200">
+                            <i class="fas fa-share-alt mr-2"></i>Partager
                         </button>
                         <button onclick="deleteRecipe('${recipe._id}')" 
                                 class="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200">
                             <i class="fas fa-trash mr-2"></i>Supprimer
                         </button>
                     </div>
+                    ` : ''}
                 </div>
             `;
             
             document.getElementById('recipeContainer').innerHTML = html;
         }
+
+        // ✅ COMMENTAIRES
+        async function loadComments() {
+            try {
+                const comments = await CommentAPI.getByRecipeId(currentRecipeId);
+                displayComments(comments);
+            } catch (error) {
+                console.error('Erreur chargement commentaires:', error);
+            }
+        }
+
+        function displayComments(comments) {
+            const container = document.getElementById('commentsContainer');
+            if (!container) return;
+
+            if (comments.length === 0) {
+                container.innerHTML = `
+                    <p class="text-gray-500 text-center py-8">
+                        <i class="fas fa-comments mr-2"></i>Aucun commentaire pour le moment
+                    </p>
+                `;
+                return;
+            }
+
+            let html = '';
+            comments.forEach(comment => {
+                const isOwner = AuthAPI.isAuthenticated() && AuthAPI.getToken() && 
+                               JSON.parse(atob(AuthAPI.getToken().split('.')[1])).id === comment.userId._id;
+                
+                html += `
+                    <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <p class="font-semibold text-gray-800">${comment.userId.username}</p>
+                                <div class="text-yellow-500">
+                                    ${'★'.repeat(comment.rating)}${'☆'.repeat(5 - comment.rating)}
+                                </div>
+                            </div>
+                            ${isOwner ? `
+                            <button onclick="deleteComment('${comment._id}')" class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            ` : ''}
+                        </div>
+                        <p class="text-gray-700">${comment.text}</p>
+                        <p class="text-gray-500 text-sm mt-2">
+                            ${new Date(comment.createdAt).toLocaleDateString('fr-FR')}
+                        </p>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        async function submitComment(e) {
+            e.preventDefault();
+
+            if (!AuthAPI.isAuthenticated()) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const text = document.getElementById('commentText').value;
+            const rating = parseInt(document.getElementById('commentRating').value);
+
+            try {
+                await CommentAPI.create(currentRecipeId, text, rating);
+                document.getElementById('commentText').value = '';
+                document.getElementById('commentRating').value = '5';
+                loadComments();
+            } catch (error) {
+                alert('Erreur: ' + error.message);
+            }
+        }
+
+        async function deleteComment(commentId) {
+            if (confirm('Supprimer ce commentaire?')) {
+                try {
+                    await CommentAPI.delete(commentId);
+                    loadComments();
+                } catch (error) {
+                    alert('Erreur: ' + error.message);
+                }
+            }
+        }
         
         function editRecipe(id) {
             window.location.href = `/edit.html?id=${id}`;
+        }
+        
+        function goToSharing(recipeId) {
+            window.location.href = `/sharing.html?recipe=${recipeId}`;
         }
         
         async function deleteRecipe(id) {

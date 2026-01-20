@@ -154,12 +154,18 @@
 
     <!-- Scripts -->
     <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
     
     <script>
         let ingredients = [];
         
         // Initialisation
         document.addEventListener('DOMContentLoaded', () => {
+            // Protéger la page - rediriger si non authentifié
+            if (!AuthAPI.isAuthenticated()) {
+                window.location.href = '/login.html';
+                return;
+            }
             setupForm();
             setupIngredientInput();
         });
