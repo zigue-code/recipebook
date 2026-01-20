@@ -27,18 +27,21 @@ const sampleRecipes = [
 
 async function seedDatabase() {
   try {
-    await mongoose.connect('mongodb://localhost:27017/recipebook');
+    await mongoose.connect('mongodb://localhost:27017/recipebook', {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
     console.log('✅ Connexion MongoDB établie');
     
     await Recipe.deleteMany({});
     console.log('🗑️ Anciennes recettes supprimées');
     
-    await Recipe.insertMany(sampleRecipes);
-    console.log('🌱 Recettes de test ajoutées');
+    const result = await Recipe.insertMany(sampleRecipes);
+    console.log(`🌱 ${result.length} recettes ajoutées avec succès!`);
     
     process.exit(0);
   } catch (error) {
-    console.error('❌ Erreur:', error);
+    console.error('❌ Erreur:', error.message);
     process.exit(1);
   }
 }

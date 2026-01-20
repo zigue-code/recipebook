@@ -42,7 +42,7 @@ const recipeSchema = new mongoose.Schema({
     type: Number,
     min: 0,
     max: 5,
-    default: 0
+    default: 1
   },
   createdAt: {
     type: Date,

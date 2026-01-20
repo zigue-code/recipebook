@@ -26,17 +26,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ✅ TOUTES LES AUTRES ROUTES VERS INDEX.HTML
+// ✅ ROUTE POUR L'ACCUEIL
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.get('/add', (req , res) => {
-    res.sendFile(path.join(__dirname, 'public', 'add.html'))
-});
-
-app.get('/recipe', (req , res) => {
-    res.sendFile(path.join(__dirname, 'public', 'recipe.html'))
 });
 
 
